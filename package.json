@@ -1,0 +1,31 @@
+{
+  "name": "countersign",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "keys": "node --env-file-if-exists=.env --import tsx src/chain/keys.ts",
+    "bench:collect": "node --env-file-if-exists=.env --import tsx src/bench/collect.ts",
+    "bench:anchor": "node --env-file-if-exists=.env --import tsx src/bench/anchor.ts",
+    "bench:report": "node --import tsx src/bench/report.ts",
+    "judges": "node --import tsx src/bench/verify.ts",
+    "demo": "node --env-file-if-exists=.env --import tsx src/demo/main.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "hono": "4.13.14",
+    "near-api-js": "7.4.0",
+    "openai": "7.45.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
