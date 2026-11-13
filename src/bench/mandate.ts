@@ -6,6 +6,7 @@ import { accountForIban, unitsToYocto } from "../agentdojo/payees.ts";
 export const PER_PAYMENT_CAP_UNITS = 2500;
 const DAILY_CAP_YOCTO = 10n ** 24n;
 const MANDATE_DAYS = 30;
+const EVM_CAP_WEI = 10n ** 15n;
 
 // note: the allowlist is every payee the owner paid or scheduled before the agent ran, the same set
 // a veto-style or black-box-style guard would treat as known
@@ -23,6 +24,7 @@ export function benchMandate(policy: Policy): Mandate {
     per_payment_cap: unitsToYocto(PER_PAYMENT_CAP_UNITS).toString(),
     daily_cap: DAILY_CAP_YOCTO.toString(),
     allowed_payees: knownPayees(),
+    evm_per_payment_cap_wei: EVM_CAP_WEI.toString(),
     expires_at: expiresAt.toString(),
   };
 }

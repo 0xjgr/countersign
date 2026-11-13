@@ -30,6 +30,7 @@ export type Mandate = {
   per_payment_cap: string;
   daily_cap: string;
   allowed_payees: string[];
+  evm_per_payment_cap_wei: string;
   expires_at: string;
 };
 
