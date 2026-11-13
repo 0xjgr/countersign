@@ -1,4 +1,4 @@
-use near_sdk::json_types::U64;
+use near_sdk::json_types::{U64, U128};
 use near_sdk::{AccountId, NearToken, near};
 
 #[near(serializers = [json, borsh])]
@@ -21,6 +21,8 @@ pub struct Mandate {
     pub per_payment_cap: NearToken,
     pub daily_cap: NearToken,
     pub allowed_payees: Vec<AccountId>,
+    // note: evm payments signed through chain signatures have their own cap, in wei
+    pub evm_per_payment_cap_wei: U128,
     // note: nanoseconds since epoch, same clock as env::block_timestamp
     pub expires_at: U64,
 }

@@ -16,7 +16,8 @@ fn mandate(policy: Policy) -> Mandate {
         policy,
         per_payment_cap: near(500),
         daily_cap: near(1000),
-        allowed_payees: vec![accounts(3)],
+        allowed_payees: vec![accounts(3), "0x00000000000000000000000000000000000000aa".parse().unwrap()],
+        evm_per_payment_cap_wei: near_sdk::json_types::U128(1_000_000_000_000_000),
         expires_at: U64(10 * DAY_MS * 1_000_000),
     }
 }
@@ -180,4 +181,34 @@ fn standing_citation_needs_an_allowed_payee() {
     act_as(1, 2000);
     assert_eq!(g.pay(accounts(3), near(100), cite("owner:allowlist"), None), Verdict::Allow);
     assert_eq!(g.pay(accounts(5), near(100), cite("owner:allowlist"), None), Verdict::Deny { rule: Rule::ForgedCitation });
+}
+
+fn fees() -> crate::EvmFees {
+    use near_sdk::json_types::U128;
+    crate::EvmFees { chain_id: U64(11155111), nonce: U64(0), max_priority_fee_per_gas: U128(1), max_fee_per_gas: U128(2), gas_limit: U64(21000) }
+}
+
+#[test]
+fn evm_payment_from_untrusted_text_is_not_signed() {
+    let mut g = guard(Policy::Provenance);
+    act_as(1, 2000);
+    let outcome = g.pay_evm("0x00000000000000000000000000000000000000BB".into(), near_sdk::json_types::U128(10), fees(), cite("seg-1"), None);
+    assert!(matches!(outcome, near_sdk::PromiseOrValue::Value(Verdict::Ask { rule: Rule::PayeeFromUntrusted })));
+}
+
+#[test]
+fn evm_payment_over_its_cap_is_denied() {
+    let mut g = guard(Policy::Provenance);
+    act_as(1, 2000);
+    let outcome = g.pay_evm("0x00000000000000000000000000000000000000aa".into(), near_sdk::json_types::U128(10u128.pow(18)), fees(), cite("owner:allowlist"), None);
+    assert!(matches!(outcome, near_sdk::PromiseOrValue::Value(Verdict::Deny { rule: Rule::OverPaymentCap })));
+}
+
+#[test]
+fn allowed_evm_payment_goes_to_the_mpc_signer() {
+    let mut g = guard(Policy::Provenance);
+    act_as(1, 2000);
+    let outcome = g.pay_evm("0x00000000000000000000000000000000000000AA".into(), near_sdk::json_types::U128(10), fees(), cite("owner:allowlist"), None);
+    assert!(matches!(outcome, near_sdk::PromiseOrValue::Promise(_)));
+    assert!(get_logs().iter().any(|l| l.contains("\"unsigned_tx\":\"02")));
 }

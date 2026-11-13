@@ -1,11 +1,15 @@
-use near_sdk::json_types::U64;
+use near_sdk::json_types::{U64, U128};
 use near_sdk::store::{IterableMap, LookupMap};
-use near_sdk::{AccountId, NearToken, PanicOnDefault, Promise, env, near, require};
+use near_sdk::{AccountId, NearToken, PanicOnDefault, Promise, PromiseOrValue, env, near, require};
 
 mod dao;
+mod evm;
 mod ledger;
 mod mandate;
+mod rlp;
 mod verdict;
+
+pub use evm::EvmFees;
 
 pub use ledger::LedgerEntry;
 pub use mandate::{Citations, Intent, Mandate, PayeeOrigin, Policy, Proposal};
@@ -90,6 +94,47 @@ impl Guard {
         };
         self.log_verdict(&proposal, proposal_id, verdict);
         verdict
+    }
+
+    pub fn pay_evm(&mut self, to: String, value_wei: U128, fees: EvmFees, citations: Citations, run: Option<String>) -> PromiseOrValue<Verdict> {
+        require!(env::predecessor_account_id() == self.mandate.agent, "only the agent can pay");
+        let to = to.to_lowercase();
+        let address = evm::parse_address(&to).expect("to must be a 0x address");
+        let payee: AccountId = to.parse().expect("0x address is a valid account id");
+        // note: the evm cap replaces the near caps; the origin rules are the same ones pay() uses
+        let proposal = Proposal { payee, amount: NearToken::from_yoctonear(0), citations, run };
+        let intent_id = match mandate::parse_origin(&proposal.citations.payee) {
+            PayeeOrigin::Owner(id) => Some(id),
+            _ => None,
+        };
+        let intent = intent_id.and_then(|id| self.intents.get(&id).cloned());
+        let verdict = if value_wei.0 > self.mandate.evm_per_payment_cap_wei.0 {
+            Verdict::Deny { rule: Rule::OverPaymentCap }
+        } else {
+            verdict::judge(&self.mandate, &self.ledger(), &proposal, intent.as_ref())
+        };
+        let unsigned_tx = (verdict == Verdict::Allow).then(|| evm::unsigned_eip1559(&address, value_wei.0, &fees));
+        LedgerEntry::EvmVerdict {
+            to,
+            value_wei,
+            chain_id: fees.chain_id,
+            policy: self.mandate.policy,
+            verdict,
+            citations: proposal.citations.clone(),
+            run: proposal.run.clone(),
+            unsigned_tx: unsigned_tx.as_deref().map(evm::to_hex),
+        }
+        .emit();
+        match unsigned_tx {
+            Some(tx) => {
+                if let Some(id) = intent_id {
+                    self.intents.remove(&id);
+                }
+                PromiseOrValue::Promise(evm::request_signature(&tx))
+            }
+            // todo: held evm payments are recorded but not queued for approval yet
+            None => PromiseOrValue::Value(verdict),
+        }
     }
 
     pub fn approve(&mut self, id: U64) -> Verdict {

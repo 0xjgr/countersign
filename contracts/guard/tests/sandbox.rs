@@ -51,7 +51,7 @@ async fn guard_settles_owner_intents_and_holds_untrusted_payees() -> testresult:
     let mandate = json!({
         "agent": agent, "policy": "provenance",
         "per_payment_cap": NearToken::from_near(1), "daily_cap": NearToken::from_near(2),
-        "allowed_payees": [vendor], "expires_at": "9999999999999999999",
+        "allowed_payees": [vendor], "evm_per_payment_cap_wei": "1000000000000000", "expires_at": "9999999999999999999",
     });
     near_api::Contract::deploy(guard.clone())
         .use_code(wasm)
