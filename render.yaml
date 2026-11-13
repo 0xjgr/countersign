@@ -1,0 +1,23 @@
+# note: the hosted judge page holds only the leash key and a model key, never the owner's key
+services:
+  - type: web
+    name: countersign
+    runtime: node
+    plan: free
+    buildCommand: npx -y pnpm@12.18.0 install --frozen-lockfile --prod
+    startCommand: node src/web/server.ts
+    healthCheckPath: /api/board
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: AGENT_LEASH_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        value: https://cloud-api.near.ai/v1
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: deepseek/deepseek-v4.1-flash
+      - key: DAILY_ATTEMPTS
+        value: "300"
