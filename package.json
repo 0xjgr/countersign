@@ -14,7 +14,8 @@
     "bench:anchor": "node --env-file-if-exists=.env --import tsx src/bench/anchor.ts",
     "bench:report": "node --import tsx src/bench/report.ts",
     "judges": "node --import tsx src/bench/verify.ts",
-    "demo": "node --env-file-if-exists=.env --import tsx src/demo/main.ts"
+    "demo": "node --env-file-if-exists=.env --import tsx src/demo/main.ts",
+    "serve": "node --env-file-if-exists=.env --import tsx src/web/server.ts"
   },
   "dependencies": {
     "@hono/node-server": "2.1.5",
