@@ -176,7 +176,7 @@ const PRESETS = {
 };
 const MEANING = {
   allow: "Settled on testnet. The payee traces back to the owner, or to a payee the owner paid before.",
-  ask: "Held. The payee only appears in the bill, so the contract keeps the payment pending until the owner or the owner's DAO approves it.",
+  ask: "Held. The payee only appears in the bill, so the contract keeps the payment pending and opens a proposal in the owner's <a href=\"https://testnet.nearblocks.io/address/countersign-owner.sputnik-v2.testnet\" target=\"_blank\" rel=\"noopener\">Sputnik DAO</a>. Nothing moves unless the owner votes for it.",
   deny: "Refused on chain. No money moved.",
 };
 const $ = (id) => document.getElementById(id);
