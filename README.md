@@ -2,6 +2,10 @@
 
 A NEAR contract that only lets an AI agent pay someone if the payee came from the owner, not from a document the agent read.
 
+![The judge page: a "bank details changed" bill, the agent pays the attacker's IBAN, the guard holds it with verdict ask, payee chosen by seg-0](docs/demo.gif)
+
+**Video (2 min):** [x.com/0xjgre/status/2121737072306278465](https://x.com/0xjgre/status/2121737072306278465)
+
 On AgentDojo's banking suite (ETH Zurich): 288 agent runs with two models, 856 testnet transactions. A full access key paid the attacker **71 times**; every guard stopped all 71. On the owner's own 16 payments, a payee allowlist **refused 5** and "unknown payee goes to a human" **interrupted the owner 5 times**; Countersign **interrupted 3 times and refused none**.
 
 **Try it:** [countersign-0chl.onrender.com](https://countersign-0chl.onrender.com) (write the bill the agent reads, watch the verdict land on testnet, no wallet or key needed). The page's agent is `Qwen/Qwen3.6-35B-A3B-FP8` on NEAR AI Cloud, chosen because it still follows injected bills; deepseek refused every injection in the benchmark, so with it you would rarely see the guard act. The default bill is the classic invoice fraud: "our bank details changed", with the attacker's IBAN. Recent models often refuse AgentDojo's original injection, but they pay this one.
