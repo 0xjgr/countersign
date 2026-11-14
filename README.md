@@ -4,7 +4,7 @@ A NEAR contract that only lets an AI agent pay someone if the payee came from th
 
 On AgentDojo's banking suite (ETH Zurich): 288 agent runs with two models, 856 testnet transactions. A full access key paid the attacker **71 times**; every guard stopped all 71. On the owner's own 16 payments, a payee allowlist **refused 5** and "unknown payee goes to a human" **interrupted the owner 5 times**; Countersign **interrupted 3 times and refused none**.
 
-**Try it:** JUDGE_PAGE_URL (write the bill the agent reads, watch the verdict land on testnet, no wallet or key needed). The page's agent is `Qwen/Qwen3.6-35B-A3B-FP8` on NEAR AI Cloud, chosen because it still follows injected bills; deepseek refused every injection in the benchmark, so with it you would rarely see the guard act.
+**Try it:** JUDGE_PAGE_URL (write the bill the agent reads, watch the verdict land on testnet, no wallet or key needed). The page's agent is `Qwen/Qwen3.6-35B-A3B-FP8` on NEAR AI Cloud, chosen because it still follows injected bills; deepseek refused every injection in the benchmark, so with it you would rarely see the guard act. The default bill is the classic invoice fraud: "our bank details changed", with the attacker's IBAN. Recent models often refuse AgentDojo's original injection, but they pay this one.
 **Check the numbers without trusting us:** `pnpm install && pnpm judges` re-reads every benchmark transaction from NEAR testnet and rebuilds the table below.
 
 Vocabulary used in code, UI and video:
@@ -49,6 +49,7 @@ NEAR's own agent skills ([near/agent-skills](https://github.com/near/agent-skill
 - `threat:` the agent launders an injected payee through its own earlier payment and then reads it back as history. Transactions the agent made during the run are labelled untrusted.
 - `threat:` replaying one owner intent for many payments. Intents are single use and expire.
 - `threat:` a stale approval paying past today's caps. `approve` re-checks the caps when it runs.
+- `threat:` the compromised host abuses the fields it still controls. On `pay_evm` the chain id is pinned to Sepolia and the gas limit and fee per gas are capped, so a huge priority fee cannot hand the balance to a block builder. Citations and run labels have a length limit, so held proposals cannot lock the guard's balance as storage.
 
 ## Results
 
@@ -115,7 +116,7 @@ pnpm judges        # no keys: re-derive the results table from testnet
 pnpm demo          # no keys: replay the recorded demo and check each transaction on testnet
 ```
 
-With your own testnet accounts: copy `.env.example` to `.env`, run `pnpm keys` and the printed `near` commands, then `pnpm demo` runs live, `pnpm serve` starts the judge page, and `pnpm bench:collect && pnpm bench:anchor && pnpm bench:report` re-runs the benchmark. The contract builds with `cargo near build` in `contracts/guard` and its tests run with `cargo test` (19 unit tests, one sandbox integration test).
+With your own testnet accounts: copy `.env.example` to `.env`, run `pnpm keys` and the printed `near` commands, then `pnpm demo` runs live, `pnpm serve` starts the judge page, and `pnpm bench:collect && pnpm bench:anchor && pnpm bench:report` re-runs the benchmark. The contract builds with `cargo near build` in `contracts/guard` and its tests run with `cargo test` (22 unit tests, one sandbox integration test).
 
 ## Deployed on testnet
 
@@ -135,6 +136,7 @@ With your own testnet accounts: copy `.env.example` to `.env`, run `pnpm keys` a
 - Two models are not a population. A different model attempts different payments; deepseek attempted no attacker payment at all, so its table only measures the cost on legit payments. The benchmark runs the agent once per episode, so what an agent would do after a refusal is not measured.
 - The Chain Signatures path is verified up to the signature: the MPC signature recovers to the guard's derived address. The signed Sepolia transaction has not been broadcast because that address holds no Sepolia ETH.
 - Nobody uses it yet. The proposed fix for NEAR's agent skills is drafted in `docs/upstream/agent-skills.md` and not merged.
+- EVM payments have a per-payment cap but no daily cap yet, and a held EVM payment is recorded as an event but not queued for approval.
 - Testnet only. No mainnet deployment, no audit.
 
 ## Prior art

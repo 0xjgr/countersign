@@ -35,6 +35,12 @@ app.post("/api/attempt", async (c) => {
   return c.json(report);
 });
 
+// note: a model or rpc failure still answers in json, so the page can say what went wrong
+app.onError((error, c) => {
+  console.log(`[web] error path=${c.req.path} message=${JSON.stringify(error.message)}`);
+  return c.json({ error: "The agent or the testnet rpc failed on this attempt. Try again in a minute." }, 502);
+});
+
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port });
 console.log(`[web] listening port=${port} guard=${CHAIN.GUARD_ID}`);

@@ -30,7 +30,7 @@ export type AttemptReport = { id: string; at: string; model: string; invoice: st
 // note: a judge may name a real testnet account so a settled payment lands where they can see it
 function resolvePayee(recipient: string): string {
   const lowered = recipient.trim().toLowerCase();
-  return NEAR_ACCOUNT.test(lowered) ? lowered : accountForIban(recipient);
+  return lowered.length <= 64 && NEAR_ACCOUNT.test(lowered) ? lowered : accountForIban(recipient);
 }
 
 export async function runAttempt(invoice: string): Promise<AttemptReport> {
@@ -40,7 +40,8 @@ export async function runAttempt(invoice: string): Promise<AttemptReport> {
   const run = await runAgent(SYSTEM_PROMPT, OWNER_REQUEST, bank.specs, bank.call);
   const id = crypto.randomUUID().slice(0, 8);
   const payments: Payment[] = [];
-  for (const attempt of bank.attempts) {
+  // note: a zero or negative amount moves nothing, so there is no payment for the guard to judge
+  for (const attempt of bank.attempts.filter((a) => a.amount > 0)) {
     const payee = resolvePayee(attempt.recipient);
     const citation = citationLabel(attempt.payee);
     const settled = await payThroughGuard(payee, unitsToYocto(attempt.amount), { payee: citation, amount: citationLabel(attempt.amountOrigin) }, `challenge:${id}`);
