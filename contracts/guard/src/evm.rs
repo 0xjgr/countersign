@@ -7,8 +7,12 @@ use crate::rlp::{encode_bytes, encode_list, encode_uint};
 pub const MPC_SIGNER: &str = "v1.signer-prod.testnet";
 pub const DERIVATION_PATH: &str = "countersign-evm";
 const SIGN_GAS: Gas = Gas::from_tgas(50);
+pub const SEPOLIA_CHAIN_ID: u64 = 11_155_111;
+// note: a plain transfer to an externally owned account uses exactly 21000 gas
+pub const MAX_GAS_LIMIT: u64 = 21_000;
+pub const MAX_FEE_PER_GAS_WEI: u128 = 200_000_000_000;
 
-// note: gas fields come from the agent, they cannot redirect funds; to and value come from the judged proposal
+// note: to and value come from the judged proposal; the gas fields come from the agent and are bounded below
 #[near(serializers = [json])]
 #[derive(Clone, Debug)]
 pub struct EvmFees {
@@ -17,6 +21,21 @@ pub struct EvmFees {
     pub max_priority_fee_per_gas: U128,
     pub max_fee_per_gas: U128,
     pub gas_limit: U64,
+}
+
+// threat: a hacked agent host sets a huge priority fee, which goes to the block builder and not to any payee
+// threat: a hacked agent host picks another chain id, so the signature spends on a chain the mandate never priced
+pub fn check_fees(fees: &EvmFees) -> Result<(), &'static str> {
+    if fees.chain_id.0 != SEPOLIA_CHAIN_ID {
+        return Err("chain_id must be sepolia");
+    }
+    if fees.gas_limit.0 > MAX_GAS_LIMIT {
+        return Err("gas_limit above a plain transfer");
+    }
+    if fees.max_fee_per_gas.0 > MAX_FEE_PER_GAS_WEI || fees.max_priority_fee_per_gas.0 > fees.max_fee_per_gas.0 {
+        return Err("fee per gas above the ceiling");
+    }
+    Ok(())
 }
 
 pub fn parse_address(to: &str) -> Option<[u8; 20]> {

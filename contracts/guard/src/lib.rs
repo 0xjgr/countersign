@@ -16,6 +16,8 @@ pub use mandate::{Citations, Intent, Mandate, PayeeOrigin, Policy, Proposal};
 pub use verdict::{Ledger, Rule, Verdict};
 
 const DAY_NS: u64 = 86_400 * 1_000_000_000;
+const MAX_CITATION_LEN: usize = 32;
+const MAX_RUN_LEN: usize = 160;
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
@@ -73,6 +75,7 @@ impl Guard {
         // threat: anyone but the leashed agent spending the guarded funds
         require!(env::predecessor_account_id() == self.mandate.agent, "only the agent can pay");
         let proposal = Proposal { payee, amount, citations, run };
+        require_bounded(&proposal);
         let intent_id = match mandate::parse_origin(&proposal.citations.payee) {
             PayeeOrigin::Owner(id) => Some(id),
             _ => None,
@@ -102,7 +105,11 @@ impl Guard {
         let address = evm::parse_address(&to).expect("to must be a 0x address");
         let payee: AccountId = to.parse().expect("0x address is a valid account id");
         // note: the evm cap replaces the near caps; the origin rules are the same ones pay() uses
+        if let Err(reason) = evm::check_fees(&fees) {
+            env::panic_str(reason);
+        }
         let proposal = Proposal { payee, amount: NearToken::from_yoctonear(0), citations, run };
+        require_bounded(&proposal);
         let intent_id = match mandate::parse_origin(&proposal.citations.payee) {
             PayeeOrigin::Owner(id) => Some(id),
             _ => None,
@@ -235,6 +242,13 @@ impl Guard {
         require!(caller == self.owner || is_dao, "only the owner or its dao");
         caller
     }
+}
+
+// threat: a hacked agent host stores long strings in held proposals, locking the guard's balance as storage
+fn require_bounded(proposal: &Proposal) {
+    let citations = &proposal.citations;
+    require!(citations.payee.len() <= MAX_CITATION_LEN && citations.amount.len() <= MAX_CITATION_LEN, "citation too long");
+    require!(proposal.run.as_ref().is_none_or(|run| run.len() <= MAX_RUN_LEN), "run label too long");
 }
 
 #[cfg(test)]

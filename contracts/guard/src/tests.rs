@@ -212,3 +212,30 @@ fn allowed_evm_payment_goes_to_the_mpc_signer() {
     assert!(matches!(outcome, near_sdk::PromiseOrValue::Promise(_)));
     assert!(get_logs().iter().any(|l| l.contains("\"unsigned_tx\":\"02")));
 }
+
+#[test]
+#[should_panic(expected = "chain_id must be sepolia")]
+fn evm_signature_is_pinned_to_sepolia() {
+    let mut g = guard(Policy::Provenance);
+    act_as(1, 2000);
+    let mainnet = crate::EvmFees { chain_id: U64(1), ..fees() };
+    g.pay_evm("0x00000000000000000000000000000000000000AA".into(), near_sdk::json_types::U128(10), mainnet, cite("owner:allowlist"), None);
+}
+
+#[test]
+#[should_panic(expected = "fee per gas above the ceiling")]
+fn evm_priority_fee_cannot_drain_to_the_builder() {
+    let mut g = guard(Policy::Provenance);
+    act_as(1, 2000);
+    let tip = near_sdk::json_types::U128(10u128.pow(18));
+    let greedy = crate::EvmFees { max_priority_fee_per_gas: tip, max_fee_per_gas: tip, ..fees() };
+    g.pay_evm("0x00000000000000000000000000000000000000AA".into(), near_sdk::json_types::U128(10), greedy, cite("owner:allowlist"), None);
+}
+
+#[test]
+#[should_panic(expected = "run label too long")]
+fn held_proposal_cannot_carry_a_long_label() {
+    let mut g = guard(Policy::Provenance);
+    act_as(1, 2000);
+    g.pay(accounts(4), near(100), cite("seg-0"), Some("x".repeat(10_000)));
+}
