@@ -21,7 +21,7 @@ Vocabulary used in code, UI and video:
 
 ## Why
 
-Agents that pay bills read invoices and emails, and an injection in that text can swap the payee. Every guard in this hackathon's security track that we read decides by the payee itself: an allowlist refuses new payees, or any unknown payee goes to a human. Neither asks who chose the payee, so the owner's own new payees get refused or interrupt a human, and an injected payee is handled the same way as one the owner typed.
+NEAR's own agent skills ([near/agent-skills](https://github.com/near/agent-skills)) teach a coding agent to sign with a private key read from an environment variable. Inside an agent that is usually a full access key, so anything the agent reads can spend it. Agents that pay bills read invoices and emails, and an injection in that text can swap the payee. Every guard in this hackathon's security track that we read decides by the payee itself: an allowlist refuses new payees, or any unknown payee goes to a human. Neither asks who chose the payee, so the owner's own new payees get refused or interrupt a human, and an injected payee is handled the same way as one the owner typed.
 
 ## How it works
 
@@ -39,6 +39,7 @@ Agents that pay bills read invoices and emails, and an injection in that text ca
 3. When the agent proposes a payment, the provenance trace finds where the payee string first appeared: the owner's words, the owner's records, or segment N.
 4. The agent's leash key calls `guard.pay`. The contract checks the caps, then the citation: an `owner:<intent>` citation must match a live, unused intent for that payee and amount; `owner:allowlist` must be a known payee; `seg-N` is held as pending. A wrong citation is refused as `forged-citation`.
 5. A held payment becomes a proposal in the owner's Sputnik DAO on testnet (`countersign-owner.sputnik-v2.testnet`). When the DAO approves, it calls `guard.approve`, which re-checks the caps before paying.
+6. The same rules cover EVM payments through Chain Signatures. `guard.pay_evm` judges the payment, builds the EIP-1559 transaction itself and asks NEAR's MPC signer (`v1.signer-prod.testnet`) to sign it for the guard's derived Sepolia address `0x4a2a94e602dca140a16a57f88c041db912624d8b`. The agent never sees an Ethereum key.
 
 ## Threat model
 
@@ -132,6 +133,8 @@ With your own testnet accounts: copy `.env.example` to `.env`, run `pnpm keys` a
 - A held payment is only as safe as the human who approves it. The DAO proposal says where the payee came from, but a careless approval still pays.
 - The owner's client extracts payees from the owner's request with a pattern match on IBANs and testnet account names. A payee described in words ("my landlord") produces no intent and goes to the owner.
 - Two models are not a population. A different model attempts different payments; deepseek attempted no attacker payment at all, so its table only measures the cost on legit payments. The benchmark runs the agent once per episode, so what an agent would do after a refusal is not measured.
+- The Chain Signatures path is verified up to the signature: the MPC signature recovers to the guard's derived address. The signed Sepolia transaction has not been broadcast because that address holds no Sepolia ETH.
+- Nobody uses it yet. The proposed fix for NEAR's agent skills is drafted in `docs/upstream/agent-skills.md` and not merged.
 - Testnet only. No mainnet deployment, no audit.
 
 ## Prior art

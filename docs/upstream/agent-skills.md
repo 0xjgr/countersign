@@ -1,7 +1,7 @@
 # Proposed change to near/agent-skills
 
 Target: `skills/near-api-js/references/key_management.md`, new subsection after "Function Call Keys".
-Status: draft, not opened. Evidence links are filled in from `bench/RESULTS.md` before opening.
+Status: draft, not opened.
 
 ## PR title
 
@@ -19,8 +19,11 @@ This adds a short subsection: give the agent a function-call key restricted to o
 one method, and let that contract enforce the owner's limits. Nothing changes for existing examples.
 
 Evidence: on AgentDojo's banking suite (ETH Zurich, MIT), an agent signing with a full access key
-paid the attacker's account in <N> of <M> injected runs on testnet. With a function-call key scoped
-to a guard contract, the same attempts were held or refused on chain. Transactions: <links>.
+(qwen3:8b) paid the attacker's account in 60 of 128 injected runs, 71 transfers on testnet. With a
+function-call key scoped to a guard contract, all 71 were held or refused on chain. Example:
+unguarded https://testnet.nearblocks.io/txns/hevsFZkNvNfHnM9e4i7kxpTZDoZRnfqtKBiKmVqfTyP, guarded
+https://testnet.nearblocks.io/txns/85QZ4UJJqqwgrUwPK14H9ev5LdrYHRPWj8d5ZkhhobSF. Full table and
+method: https://github.com/0xjgr/countersign#results.
 
 ## Text to add
 
