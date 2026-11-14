@@ -10,6 +10,7 @@ export type Anchor = {
   mode: Mode;
   payee: string;
   yocto: string;
+  sentYocto?: string;
   citation: string;
   verdict: Verdict;
   txHash: string;

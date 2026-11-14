@@ -21,20 +21,27 @@ const VerdictEvent = z.object({
   data: z.object({ payee: z.string(), amount: z.string(), verdict: Verdict, run: z.string().nullable() }),
 });
 
-async function fetchTx(hash: string) {
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const response = await fetch(CHAIN.NEAR_ARCHIVAL_RPC, {
+async function fetchTxFrom(rpc: string, hash: string) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const response = await fetch(rpc, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: hash, sender_account_id: CHAIN.AGENT_ID, wait_until: "FINAL" } }),
     });
-    if (response.ok) {
-      const parsed = TxStatus.safeParse(await response.json());
-      if (parsed.success) return parsed.data.result;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+    const body: unknown = response.ok ? await response.json() : undefined;
+    const parsed = TxStatus.safeParse(body);
+    if (parsed.success) return parsed.data.result;
+    // note: public rpcs answer 429 inside a 200 body, only a rate limit is worth waiting for
+    const isRateLimited = response.status === 429 || JSON.stringify(body ?? "").includes("-429");
+    if (response.ok && !isRateLimited) return undefined;
+    await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
   }
   return undefined;
+}
+
+// note: the regular rpc keeps a few days of history, the archival one has the rest but a tighter rate limit
+async function fetchTx(hash: string) {
+  return (await fetchTxFrom(CHAIN.NEAR_RPC, hash)) ?? (await fetchTxFrom(CHAIN.NEAR_ARCHIVAL_RPC, hash));
 }
 
 // threat: a results table that only exists in our repo, every row is re-derived from what testnet recorded
@@ -42,7 +49,7 @@ async function verifyAnchor(anchor: Anchor): Promise<string | undefined> {
   const tx = await fetchTx(anchor.txHash);
   if (!tx) return "transaction not found";
   if (anchor.mode === "full-access") {
-    const isTransfer = tx.transaction.receiver_id === anchor.payee && JSON.stringify(tx.transaction.actions).includes(anchor.yocto);
+    const isTransfer = tx.transaction.receiver_id === anchor.payee && JSON.stringify(tx.transaction.actions).includes(anchor.sentYocto ?? anchor.yocto);
     return isTransfer && "SuccessValue" in tx.status ? undefined : "transfer does not match";
   }
   const event = tx.receipts_outcome
@@ -68,8 +75,8 @@ async function inBatches<T, R>(items: T[], size: number, work: (item: T) => Prom
 for (const model of listModels()) {
   const anchors = loadAnchors(model);
   if (anchors.length === 0) continue;
-  console.log(`[verify] model=${model} anchors=${anchors.length} rpc=${CHAIN.NEAR_ARCHIVAL_RPC}`);
-  const problems = await inBatches(anchors, 8, verifyAnchor);
+  console.log(`[verify] model=${model} anchors=${anchors.length} rpc=${CHAIN.NEAR_RPC} archival=${CHAIN.NEAR_ARCHIVAL_RPC}`);
+  const problems = await inBatches(anchors, 4, verifyAnchor);
   const verified = anchors.filter((_, i) => problems[i] === undefined);
   anchors.forEach((anchor, i) => {
     if (problems[i]) console.log(`[verify] mismatch ${anchor.episode}/${anchor.attempt}/${anchor.mode} reason="${problems[i]}" ${EXPLORER_TX}${anchor.txHash}`);

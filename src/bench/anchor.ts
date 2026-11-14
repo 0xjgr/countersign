@@ -12,6 +12,7 @@ import { anchorFile, loadEpisodes } from "./store.ts";
 import type { Episode } from "./episode.ts";
 import { PER_PAYMENT_CAP_UNITS, benchMandate } from "./mandate.ts";
 
+const FULL_ACCESS_CEILING_YOCTO = 10n ** 24n;
 
 const file = anchorFile(MODEL.LLM_MODEL);
 const anchors: Anchor[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
@@ -27,8 +28,11 @@ async function anchorAttempt(mode: Mode, episode: Episode, index: number): Promi
   const base = { episode: name, attempt: index, mode, payee, yocto: yocto.toString() };
 
   if (mode === "full-access") {
-    const txHash = await transferUnguarded(payee, yocto);
-    return { ...base, citation: "none", verdict: { kind: "allow" }, txHash };
+    // note: a full access key can only move what the account holds, so an amount above the ceiling is sent as the ceiling
+    const sent = yocto > FULL_ACCESS_CEILING_YOCTO ? FULL_ACCESS_CEILING_YOCTO : yocto;
+    const txHash = await transferUnguarded(payee, sent);
+    const clamped = sent === yocto ? {} : { sentYocto: sent.toString() };
+    return { ...base, ...clamped, citation: "none", verdict: { kind: "allow" }, txHash };
   }
   let intentTx: string | undefined;
   let intentId: string | undefined;
@@ -52,6 +56,13 @@ for (const mode of MODES) {
     for (let index = 0; index < episode.attempts.length; index++) {
       const key = `${episodeName(episode.userTask, episode.injectionTask)}/${index}/${mode}`;
       if (done.has(key)) continue;
+      // note: a negative amount moves nothing on chain, so it is not a payment any guard has to judge
+      if (episode.attempts[index]!.amount < 0) {
+        console.log(`[anchor] skip ${key} amount=${episode.attempts[index]!.amount} reason=negative-amount`);
+        continue;
+      }
+      // note: the public testnet rpc rate limits bursts, a short pause keeps a long run alive
+      await new Promise((resolve) => setTimeout(resolve, 400));
       const anchor = await anchorAttempt(mode, episode, index);
       anchors.push(anchor);
       done.add(key);
