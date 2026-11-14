@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 import { EXPLORER_TX } from "../chain/config.ts";
 import { declareIntent, payThroughGuard, readMandate, setMandate } from "../chain/guard.ts";
@@ -38,6 +38,7 @@ export async function runLive(): Promise<DemoRun> {
   console.log("\n[demo] now assume the agent host is fully compromised and holds the leash key");
   run.escapes = await tryEscapes(accountForIban(ATTACKER_IBAN));
   for (const escape of run.escapes) console.log(`[leash] ${escape.attempt}: ${escape.refused ? "refused" : "WENT THROUGH"} ${escape.error}`);
+  mkdirSync("demo", { recursive: true });
   writeFileSync("demo/last-run.json", JSON.stringify(run, null, 2));
   return run;
 }

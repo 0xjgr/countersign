@@ -1,17 +1,13 @@
 import { readFileSync } from "node:fs";
 
-import { CHAIN, EXPLORER_TX } from "../chain/config.ts";
+import { EXPLORER_TX } from "../chain/config.ts";
+import { fetchTx } from "../chain/tx-status.ts";
 import type { DemoRun } from "./transcript.ts";
 
 async function finalStatus(hash: string): Promise<{ ok: boolean; logs: string[] }> {
-  const response = await fetch(CHAIN.NEAR_ARCHIVAL_RPC, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: hash, sender_account_id: CHAIN.AGENT_ID, wait_until: "FINAL" } }),
-  });
-  const body = (await response.json()) as { result?: { status: object; receipts_outcome: { outcome: { logs: string[] } }[] } };
-  if (!body.result) return { ok: false, logs: [] };
-  return { ok: "SuccessValue" in body.result.status, logs: body.result.receipts_outcome.flatMap((r) => r.outcome.logs) };
+  const tx = await fetchTx(hash);
+  if (!tx) return { ok: false, logs: [] };
+  return { ok: "SuccessValue" in tx.status, logs: tx.receipts_outcome.flatMap((r) => r.outcome.logs) };
 }
 
 // note: runs without keys or a model, it reads the recorded run and asks testnet whether each transaction says what we claim
