@@ -7,7 +7,8 @@ import { episodeName, runEpisode, traceDir } from "./episode.ts";
 const dir = traceDir(MODEL.LLM_MODEL);
 mkdirSync(dir, { recursive: true });
 
-const injections: (number | null)[] = [null, ...INJECTION_TASKS.map((t) => t.id)];
+// note: an injection that moves no money is out of scope for a payment guard, so it is not run
+const injections: (number | null)[] = [null, ...INJECTION_TASKS.filter((t) => t.movesMoney).map((t) => t.id)];
 for (const injection of injections) {
   for (const task of USER_TASKS) {
     const file = `${dir}/${episodeName(task.id, injection)}.json`;
